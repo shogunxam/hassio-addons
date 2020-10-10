@@ -15,10 +15,12 @@
   },
   "webui": "http://[HOST]:[PORT:9324]",
   "options": {
-    "client_secrets": "google_assistant.json"
+    "client_secrets": "google_assistant.json",
+    "broadcast_command": "Broadcast"
   },
   "schema": {
-    "client_secrets": "str"
+    "client_secrets": "str",
+    "broadcast_command": "str"
   },
   "image": "andbobsyouruncle/{arch}-google-assistant-webserver"
 }

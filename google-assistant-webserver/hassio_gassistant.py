@@ -5,7 +5,7 @@ from pathlib import Path
 
 import os
 import logging
-
+import threading
 import click
 import google.auth.transport.grpc
 import google.auth.transport.requests
@@ -34,11 +34,18 @@ DEFAULT_GRPC_DEADLINE = 60 * 3 + 5
 PLAYING = embedded_assistant_pb2.ScreenOutConfig.PLAYING
 
 class BroadcastMessage(Resource):
+    lock = threading.Lock()
     def get(self):
         message = request.args.get('message', default = 'This is a test!')
-        text_query = 'broadcast '+message
-        response_text, response_html = assistant.assist(text_query=text_query)
+        logging.debug("Broadcasting Message: %s",message)
+        if message == None or not message:
+            return {'status': 'Empty message'}
+
+        BroadcastMessage.lock.acquire()
+        response_text, response_html = assistant.assist(text_query=broadcast_cmd)
+        response_text, response_html = assistant.assist(text_query=message)
         logging.debug(response_text)
+        BroadcastMessage.lock.release()
         return {'status': 'OK'}
 
 api.add_resource(BroadcastMessage, '/broadcast_message')
@@ -134,8 +141,10 @@ class GoogleTextAssistant(object):
 
 if __name__ == '__main__':
     global assistant
+    global broadcast_cmd
 
     cred_json = Path(sys.argv[1])
+    broadcast_cmd = sys.argv[2]
 
     # open credentials
     with cred_json.open('r') as data:
