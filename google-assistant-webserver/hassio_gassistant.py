@@ -1,6 +1,6 @@
 """Hass.IO Google Assistant."""
 import json
-import sys
+import sys, traceback
 from pathlib import Path
 
 import os
@@ -36,27 +36,40 @@ PLAYING = embedded_assistant_pb2.ScreenOutConfig.PLAYING
 class BroadcastMessage(Resource):
     lock = threading.Lock()
     def get(self):
-        message = request.args.get('message', default = 'This is a test!')
-        logging.debug("Broadcasting Message: %s",message)
-        if message == None or not message:
-            return {'status': 'Empty message'}
-
-        BroadcastMessage.lock.acquire()
-        response_text, response_html = assistant.assist(text_query=broadcast_cmd)
-        response_text, response_html = assistant.assist(text_query=message)
-        logging.debug(response_text)
-        BroadcastMessage.lock.release()
-        return {'status': 'OK'}
+        try:
+            message = request.args.get('message', default = 'This is a test!')
+            device = request.args.get('device', default = '')
+            #text_query = '%s %s' % (broadcast_cmd, message)
+            logging.debug("Broadcasting Message: %s",message)
+            if message == None or not message:
+                return {'status': 'Empty message'}
+            with BroadcastMessage.lock:
+                if device :
+                    query = broadcast_cmd + " to "+ device +" "+message
+                    response_text, response_html = assistant.assist(text_query=query)
+                else:
+                    response_text, response_html = assistant.assist(text_query=broadcast_cmd)
+                    response_text, response_html = assistant.assist(text_query=message)
+                logging.debug(response_text)
+            return {'status': 'OK'}
+        except Exception as e:
+            logging.debug(e)
+            traceback.print_exc()
+            return {'status': e}
 
 api.add_resource(BroadcastMessage, '/broadcast_message')
 
 class Command(Resource):
     def get(self):
-        message = request.args.get('message', default = 'This is a test!')
-        response_text, response_html = assistant.assist(text_query=message)
-        logging.debug(response_text)
-        return {'status': 'OK'}
-
+        try:
+            message = request.args.get('message', default = 'This is a test!')
+            response_text, response_html = assistant.assist(text_query=message)
+            logging.debug(response_text)
+            return {'status': 'OK'}
+        except Exception as e:
+            logging.debug(e)
+            traceback.print_exc()
+            return {'status': e}
 api.add_resource(Command, '/command')
 
 
@@ -136,7 +149,7 @@ class GoogleTextAssistant(object):
                 conversation_state = resp.dialog_state_out.conversation_state
                 self.conversation_state = conversation_state
             if resp.dialog_state_out.supplemental_display_text:
-                text_response = resp.dialog_state_out.supplemental_display_text()
+                text_response = resp.dialog_state_out.supplemental_display_text
         return text_response, html_response
 
 if __name__ == '__main__':
